@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Streak Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- General & Background --- */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(300deg, #0f172a, #1e1b4b, #111827);
+            background-size: 180% 180%;
+            animation: gradientAnimation 18s ease infinite;
+            color: #e5e7eb;
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* --- Header --- */
+        .main-title {
+            background: linear-gradient(90deg, #34d399, #38bdf8, #f59e0b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 40px rgba(52, 211, 153, 0.2);
+        }
+
+        /* --- Tracker Card Styling --- */
+        .tracker-card {
+            background-color: rgba(17, 24, 39, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(55, 65, 81, 0.5);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .tracker-card:hover {
+            transform: translateY(-8px) scale(1.03);
+            border-color: rgba(107, 114, 128, 0.8);
+        }
+        
+        /* Themed Glow Effects on Hover */
+        .gym-card:hover { box-shadow: 0 0 30px rgba(16, 185, 129, 0.3); border-color: rgba(16, 185, 129, 0.8); }
+        .diet-card:hover { box-shadow: 0 0 30px rgba(56, 189, 248, 0.3); border-color: rgba(56, 189, 248, 0.8); }
+        .study-card:hover { box-shadow: 0 0 30px rgba(245, 158, 11, 0.3); border-color: rgba(245, 158, 11, 0.8); }
+
+        /* --- Graph Styling --- */
+        .graph-container {
+            overflow-x: auto;
+            padding: 1rem 0;
+            scrollbar-width: thin;
+            scrollbar-color: #4b5563 #1f2937;
+        }
+        .graph-wrapper {
+            position: relative;
+            display: inline-block;
+            padding-left: 30px; 
+            padding-top: 20px;
+        }
+        .contribution-grid {
+            display: grid;
+            grid-template-rows: repeat(7, 1fr);
+            grid-auto-flow: column;
+            gap: 4px;
+        }
+        .day-cell {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+            background-color: #374151;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .day-cell:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        /* --- Tooltip & Labels --- */
+        .tooltip {
+            position: absolute;
+            background-color: #1f2937;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform: translateY(5px);
+            z-index: 10;
+            border: 1px solid #4b5563;
+        }
+        .day-labels, .month-labels {
+            font-size: 10px;
+            color: #9ca3af;
+            position: absolute;
+        }
+        .day-labels { left: 0; top: 20px; }
+        .day-labels div { height: 19px; }
+        .month-labels { top: 0; left: 30px; display: flex; }
+        .month-labels div { position: absolute; }
+        
+        /* --- Navigation Buttons --- */
+        .year-nav-btn {
+            background: none;
+            border: 1px solid #4b5563;
+            color: #d1d5db;
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .year-nav-btn:hover:not(:disabled) {
+            background-color: #374151;
+            border-color: #6b7280;
+            transform: scale(1.1);
+        }
+        .year-nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="text-white p-4 sm:p-8">
+
+    <div id="tooltip" class="tooltip"></div>
+
+    <header class="text-center mb-12">
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight main-title">My Progress Streaks</h1>
+        <p class="text-gray-400 mt-2 max-w-xl mx-auto">Stay consistent. Visualize your dedication one day at a time.</p>
+    </header>
+
+    <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Gym Tracker -->
+        <div class="tracker-card gym-card p-6 rounded-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex-grow">
+                    <h2 class="text-xl font-semibold text-emerald-400">Gym Progress <span class="text-sm font-normal text-gray-400">(muscle training+cardio)</span></h2>
+                    <p id="gym-streak" class="text-sm text-gray-400 mt-1"></p>
+                </div>
+                 <div class="flex items-center gap-2 text-gray-300">
+                    <button id="gym-prev-year" class="year-nav-btn">&lt;</button>
+                    <span id="gym-year-display" class="font-semibold w-12 text-center"></span>
+                    <button id="gym-next-year" class="year-nav-btn">&gt;</button>
+                </div>
+            </div>
+            <div id="gym-graph-container" class="graph-container"></div>
+        </div>
+
+        <!-- Diet Tracker -->
+        <div class="tracker-card diet-card p-6 rounded-2xl">
+            <div class="flex justify-between items-center mb-4">
+                 <div class="flex-grow">
+                    <h2 class="text-xl font-semibold text-sky-400">Diet Progress <span class="text-sm font-normal text-gray-400">(no sugar+3bottles water)</span></h2>
+                    <p id="diet-streak" class="text-sm text-gray-400 mt-1"></p>
+                </div>
+                 <div class="flex items-center gap-2 text-gray-300">
+                    <button id="diet-prev-year" class="year-nav-btn">&lt;</button>
+                    <span id="diet-year-display" class="font-semibold w-12 text-center"></span>
+                    <button id="diet-next-year" class="year-nav-btn">&gt;</button>
+                </div>
+            </div>
+            <div id="diet-graph-container" class="graph-container"></div>
+        </div>
+
+        <!-- Study Tracker -->
+        <div class="tracker-card study-card p-6 rounded-2xl">
+            <div class="flex justify-between items-center mb-4">
+                 <div class="flex-grow">
+                    <h2 class="text-xl font-semibold text-amber-400">Study Progress <span class="text-sm font-normal text-gray-400">(ml/coursework)</span></h2>
+                    <p id="study-streak" class="text-sm text-gray-400 mt-1"></p>
+                </div>
+                 <div class="flex items-center gap-2 text-gray-300">
+                    <button id="study-prev-year" class="year-nav-btn">&lt;</button>
+                    <span id="study-year-display" class="font-semibold w-12 text-center"></span>
+                    <button id="study-next-year" class="year-nav-btn">&gt;</button>
+                </div>
+            </div>
+            <div id="study-graph-container" class="graph-container"></div>
+        </div>
+    </main>
+    
+    <footer class="text-center mt-16 text-gray-500 text-sm space-y-2">
+        <p>Click any square to cycle through intensity levels.</p>
+        <p>Designed & Developed by Pratyush Kumar</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const trackers = [
+                { id: 'gym', container: 'gym-graph-container', colors: ['bg-emerald-800', 'bg-emerald-600', 'bg-emerald-400'], streakEl: 'gym-streak' },
+                { id: 'diet', container: 'diet-graph-container', colors: ['bg-sky-800', 'bg-sky-600', 'bg-sky-400'], streakEl: 'diet-streak' },
+                { id: 'study', container: 'study-graph-container', colors: ['bg-amber-800', 'bg-amber-600', 'bg-amber-400'], streakEl: 'study-streak' }
+            ];
+
+            const tooltip = document.getElementById('tooltip');
+            const intensityLabels = ["No activity", "Little work", "Medium work", "A lot of work"];
+            const currentYear = new Date().getFullYear();
+            let displayedYears = {};
+
+            const getLocalDateString = (date) => {
+                const d = new Date(date);
+                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                return d.toISOString().split('T')[0];
+            };
+
+            const calculateCurrentStreak = (data) => {
+                let streak = 0;
+                const dateToCheck = new Date();
+                if ((data[getLocalDateString(dateToCheck)] || 0) === 0) {
+                    dateToCheck.setDate(dateToCheck.getDate() - 1);
+                }
+                while (data[getLocalDateString(dateToCheck)] > 0) {
+                    streak++;
+                    dateToCheck.setDate(dateToCheck.getDate() - 1);
+                }
+                return streak;
+            };
+
+            const generateStreakGraph = (tracker, year) => {
+                const { container: containerId, colors, streakEl: streakElId } = tracker;
+                const storageKey = `${tracker.id}StreakData`;
+                const container = document.getElementById(containerId);
+                container.innerHTML = '';
+
+                const data = JSON.parse(localStorage.getItem(storageKey)) || {};
+
+                document.getElementById(`${tracker.id}-year-display`).textContent = year;
+                document.getElementById(`${tracker.id}-next-year`).disabled = (year >= currentYear);
+
+                const streakEl = document.getElementById(streakElId);
+                if (year === currentYear) {
+                    const streak = calculateCurrentStreak(data);
+                    streakEl.textContent = `Current Streak: ${streak} day${streak !== 1 ? 's' : ''}`;
+                } else {
+                    const totalDays = Object.keys(data).filter(dateStr => dateStr.startsWith(year)).length;
+                    streakEl.textContent = `Total Active Days: ${totalDays}`;
+                }
+
+                const today = new Date();
+                const startDate = new Date(year, 0, 1);
+                const endDate = new Date(year, 11, 31);
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'graph-wrapper';
+
+                const grid = document.createElement('div');
+                grid.className = 'contribution-grid';
+
+                const dayLabels = document.createElement('div');
+                dayLabels.className = 'day-labels';
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                dayNames.forEach((name, i) => {
+                    if (i % 2 !== 0) { 
+                        const label = document.createElement('div');
+                        label.textContent = name;
+                        dayLabels.appendChild(label);
+                    } else {
+                        dayLabels.appendChild(document.createElement('div'));
+                    }
+                });
+                wrapper.appendChild(dayLabels);
+                
+                const monthLabelsContainer = document.createElement('div');
+                monthLabelsContainer.className = 'month-labels';
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                let monthPositions = [];
+
+                for (let i = 0; i < startDate.getDay(); i++) {
+                    grid.appendChild(document.createElement('div'));
+                }
+                
+                for (let day = new Date(startDate); day <= endDate; day.setDate(day.getDate() + 1)) {
+                    if (day.getDate() === 1 && day.getMonth() !== 0) {
+                        for (let i = 0; i < 7; i++) {
+                            const spacer = document.createElement('div');
+                            spacer.className = 'w-2';
+                            grid.appendChild(spacer);
+                        }
+                    }
+
+                    if (day > today) continue;
+
+                    const dateString = getLocalDateString(day);
+                    const cell = document.createElement('div');
+                    cell.className = 'day-cell';
+                    
+                    const intensity = data[dateString];
+                    if (intensity) {
+                        cell.classList.add(colors[intensity - 1]);
+                    }
+                    
+                    cell.dataset.date = day.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                    cell.dataset.status = intensityLabels[intensity || 0];
+                    cell.dataset.dateString = dateString;
+
+                    cell.addEventListener('click', () => toggleDate(tracker, dateString));
+                    grid.appendChild(cell);
+
+                    if (day.getDate() === 1) {
+                        monthPositions.push({ month: day.getMonth(), element: cell });
+                    }
+                }
+                
+                wrapper.appendChild(grid);
+                container.appendChild(wrapper);
+
+                setTimeout(() => {
+                    monthPositions.forEach(pos => {
+                        const monthLabel = document.createElement('div');
+                        monthLabel.textContent = monthNames[pos.month];
+                        monthLabel.style.left = `${pos.element.offsetLeft}px`;
+                        monthLabelsContainer.appendChild(monthLabel);
+                    });
+                    wrapper.prepend(monthLabelsContainer);
+                    if(year === currentYear) {
+                       container.scrollLeft = container.scrollWidth;
+                    }
+                }, 0);
+            };
+
+            const toggleDate = (tracker, dateString) => {
+                const storageKey = `${tracker.id}StreakData`;
+                const data = JSON.parse(localStorage.getItem(storageKey)) || {};
+                
+                let currentIntensity = data[dateString] || 0;
+                currentIntensity = (currentIntensity + 1) % 4;
+
+                if (currentIntensity === 0) {
+                    delete data[dateString];
+                } else {
+                    data[dateString] = currentIntensity;
+                }
+                
+                localStorage.setItem(storageKey, JSON.stringify(data));
+                generateStreakGraph(tracker, displayedYears[tracker.id]);
+            };
+
+            trackers.forEach(tracker => {
+                displayedYears[tracker.id] = currentYear;
+                generateStreakGraph(tracker, displayedYears[tracker.id]);
+
+                document.getElementById(`${tracker.id}-prev-year`).addEventListener('click', () => {
+                    displayedYears[tracker.id]--;
+                    generateStreakGraph(tracker, displayedYears[tracker.id]);
+                });
+                document.getElementById(`${tracker.id}-next-year`).addEventListener('click', () => {
+                    if (displayedYears[tracker.id] < currentYear) {
+                        displayedYears[tracker.id]++;
+                        generateStreakGraph(tracker, displayedYears[tracker.id]);
+                    }
+                });
+            });
+            
+            document.body.addEventListener('mouseover', (e) => {
+                if (e.target.classList.contains('day-cell') && e.target.dataset.date) {
+                    tooltip.textContent = `${e.target.dataset.date} - ${e.target.dataset.status}`;
+                    tooltip.style.opacity = '1';
+                    tooltip.style.transform = 'translateY(0)';
+                    const rect = e.target.getBoundingClientRect();
+                    tooltip.style.left = `${rect.left + window.scrollX + rect.width / 2 - tooltip.offsetWidth / 2}px`;
+                    tooltip.style.top = `${rect.top + window.scrollY - tooltip.offsetHeight - 8}px`;
+                }
+            });
+
+            document.body.addEventListener('mouseout', (e) => {
+                if (e.target.classList.contains('day-cell')) {
+                    tooltip.style.opacity = '0';
+                    tooltip.style.transform = 'translateY(5px)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
+
+
+
